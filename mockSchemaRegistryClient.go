@@ -296,10 +296,7 @@ func (mck *MockSchemaRegistryClient) generateVersion(id int, subject string, sch
 	}
 
 	// Add a codec, required otherwise Codec() panics and the mock registry is unusable
-	codec, err := goavro.NewCodec(schema)
-	if err != nil {
-		return nil, err
-	}
+	codec, _ := goavro.NewCodec(schema)
 
 	schemaToRegister := &Schema{
 		id:         id,
