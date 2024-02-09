@@ -3,11 +3,12 @@ package srclient
 import (
 	"errors"
 	"fmt"
-	"github.com/linkedin/goavro/v2"
 	"net/url"
 	"regexp"
 	"sort"
 	"time"
+
+	"github.com/crxfoz/goavro/v2"
 )
 
 // Compile-time interface check

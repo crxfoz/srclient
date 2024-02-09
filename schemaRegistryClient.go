@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/linkedin/goavro/v2"
+	"github.com/crxfoz/goavro/v2"
 	"github.com/santhosh-tekuri/jsonschema/v5"
 	"golang.org/x/sync/semaphore"
 )
