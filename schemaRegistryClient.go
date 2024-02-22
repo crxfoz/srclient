@@ -57,6 +57,8 @@ type SchemaRegistryClient struct {
 	httpClient               *http.Client
 	cachingEnabled           bool
 	cachingEnabledLock       sync.RWMutex
+	cacheLatest              bool
+	cacheLatestLock          sync.RWMutex
 	codecCreationEnabled     bool
 	codecCreationEnabledLock sync.RWMutex
 	idSchemaCache            map[int]*Schema
@@ -188,6 +190,7 @@ func CreateSchemaRegistryClientWithOptions(schemaRegistryURL string, client *htt
 		schemaRegistryURL:    schemaRegistryURL,
 		httpClient:           client,
 		cachingEnabled:       true,
+		cacheLatest:          false,
 		codecCreationEnabled: false,
 		idSchemaCache:        make(map[int]*Schema),
 		subjectSchemaCache:   make(map[string]*Schema),
@@ -585,6 +588,13 @@ func (client *SchemaRegistryClient) CachingEnabled(value bool) {
 	client.cachingEnabled = value
 }
 
+// CacheLatest controls if schemas with the latest as a version is cached.
+func (client *SchemaRegistryClient) CacheLatest(value bool) {
+	client.cacheLatestLock.Lock()
+	defer client.cacheLatestLock.Unlock()
+	client.cacheLatest = value
+}
+
 // CodecCreationEnabled allows the application to enable/disable
 // the automatic creation of codec's when schemas are returned.
 func (client *SchemaRegistryClient) CodecCreationEnabled(value bool) {
@@ -596,12 +606,14 @@ func (client *SchemaRegistryClient) CodecCreationEnabled(value bool) {
 func (client *SchemaRegistryClient) getVersion(subject string, version string) (*Schema, error) {
 
 	if client.getCachingEnabled() {
-		cacheKey := cacheKey(subject, version)
-		client.subjectSchemaCacheLock.RLock()
-		cachedResult := client.subjectSchemaCache[cacheKey]
-		client.subjectSchemaCacheLock.RUnlock()
-		if cachedResult != nil {
-			return cachedResult, nil
+		if version != "latest" || (version == "latest" && client.getCacheLatest()) {
+			cacheKey := cacheKey(subject, version)
+			client.subjectSchemaCacheLock.RLock()
+			cachedResult := client.subjectSchemaCache[cacheKey]
+			client.subjectSchemaCacheLock.RUnlock()
+			if cachedResult != nil {
+				return cachedResult, nil
+			}
 		}
 	}
 
@@ -632,12 +644,13 @@ func (client *SchemaRegistryClient) getVersion(subject string, version string) (
 	}
 
 	if client.getCachingEnabled() {
-
-		// Update the subject-2-schema cache
-		cacheKey := cacheKey(subject, version)
-		client.subjectSchemaCacheLock.Lock()
-		client.subjectSchemaCache[cacheKey] = schema
-		client.subjectSchemaCacheLock.Unlock()
+		if version != "latest" || (version == "latest" && client.getCacheLatest()) {
+			// Update the subject-2-schema cache
+			cacheKey := cacheKey(subject, version)
+			client.subjectSchemaCacheLock.Lock()
+			client.subjectSchemaCache[cacheKey] = schema
+			client.subjectSchemaCacheLock.Unlock()
+		}
 
 		// Update the id-2-schema cache
 		client.idSchemaCacheLock.Lock()
@@ -686,6 +699,12 @@ func (client *SchemaRegistryClient) getCachingEnabled() bool {
 	client.cachingEnabledLock.RLock()
 	defer client.cachingEnabledLock.RUnlock()
 	return client.cachingEnabled
+}
+
+func (client *SchemaRegistryClient) getCacheLatest() bool {
+	client.cacheLatestLock.RLock()
+	defer client.cacheLatestLock.RUnlock()
+	return client.cacheLatest
 }
 
 func (client *SchemaRegistryClient) getCodecCreationEnabled() bool {
