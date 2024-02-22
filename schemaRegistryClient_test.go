@@ -456,6 +456,8 @@ func TestSchemaRegistryClient_GetLatestSchemaReturnsValueFromCache(t *testing.T)
 	})
 
 	srClient := CreateSchemaRegistryClient(server.URL)
+	srClient.CacheLatest(true)
+
 	schema1, err := srClient.GetLatestSchema("test1-value")
 
 	// Test response
@@ -466,6 +468,32 @@ func TestSchemaRegistryClient_GetLatestSchemaReturnsValueFromCache(t *testing.T)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, *call)
+	assert.Equal(t, schema1, schema2)
+}
+
+func TestSchemaRegistryClient_GetLatestSchemaReturnsValueFromCacheNegative(t *testing.T) {
+	t.Parallel()
+	server, call := mockServerFromSubjectVersionPairWithSchemaResponse(t, "test1-value", "latest", schemaResponse{
+		Subject:    "test1",
+		Version:    1,
+		Schema:     "payload",
+		ID:         1,
+		References: nil,
+	})
+
+	srClient := CreateSchemaRegistryClient(server.URL)
+	srClient.CacheLatest(false)
+
+	schema1, err := srClient.GetLatestSchema("test1-value")
+
+	// Test response
+	assert.NoError(t, err)
+
+	// When called twice
+	schema2, err := srClient.GetLatestSchema("test1-value")
+
+	assert.NoError(t, err)
+	assert.Equal(t, 2, *call)
 	assert.Equal(t, schema1, schema2)
 }
 
