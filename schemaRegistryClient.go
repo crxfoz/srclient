@@ -53,6 +53,7 @@ type ISchemaRegistryClient interface {
 // deserialize data.
 type SchemaRegistryClient struct {
 	schemaRegistryURL        string
+	credsLock                sync.RWMutex
 	credentials              *credentials
 	httpClient               *http.Client
 	cachingEnabled           bool
@@ -556,6 +557,9 @@ func (client *SchemaRegistryClient) DeleteSubjectByVersion(subject string, versi
 // used with Schema Registry, for scenarios when Schema
 // Registry has authentication enabled.
 func (client *SchemaRegistryClient) SetCredentials(username string, password string) {
+	client.credsLock.Lock()
+	defer client.credsLock.Unlock()
+
 	if len(username) > 0 && len(password) > 0 {
 		credentials := credentials{username: username, password: password, bearerToken: ""}
 		client.credentials = &credentials
@@ -566,6 +570,9 @@ func (client *SchemaRegistryClient) SetCredentials(username string, password str
 // http header with calls to Schema Registry
 // The BearerToken will override Schema Registry credentials
 func (client *SchemaRegistryClient) SetBearerToken(token string) {
+	client.credsLock.Lock()
+	defer client.credsLock.Unlock()
+
 	if len(token) > 0 {
 		credentials := credentials{username: "", password: "", bearerToken: token}
 		client.credentials = &credentials
@@ -669,6 +676,8 @@ func (client *SchemaRegistryClient) httpRequest(method, uri string, payload io.R
 	if err != nil {
 		return nil, err
 	}
+
+	client.credsLock.RLock()
 	if client.credentials != nil {
 		if len(client.credentials.username) > 0 && len(client.credentials.password) > 0 {
 			req.SetBasicAuth(client.credentials.username, client.credentials.password)
@@ -676,6 +685,8 @@ func (client *SchemaRegistryClient) httpRequest(method, uri string, payload io.R
 			req.Header.Add("Authorization", "Bearer "+client.credentials.bearerToken)
 		}
 	}
+	client.credsLock.RUnlock()
+
 	req.Header.Set("Content-Type", contentType)
 
 	client.sem.Acquire(context.Background(), 1)
