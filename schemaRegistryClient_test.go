@@ -2,6 +2,7 @@ package srclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -58,7 +59,7 @@ func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
 
 		srClient := CreateSchemaRegistryClient(server.URL)
 		srClient.CodecCreationEnabled(false)
-		schema, err := srClient.CreateSchema("test1-value", "test2", Protobuf)
+		schema, err := srClient.CreateSchema(context.Background(), "test1-value", "test2", Protobuf)
 
 		// Test response
 		assert.NoError(t, err)
@@ -101,7 +102,7 @@ func TestSchemaRegistryClient_CreateSchemaWithoutReferences(t *testing.T) {
 
 		srClient := CreateSchemaRegistryClient(server.URL)
 		srClient.CodecCreationEnabled(false)
-		schema, err := srClient.CreateSchema("test1", "test2", Avro)
+		schema, err := srClient.CreateSchema(context.Background(), "test1", "test2", Avro)
 
 		// Test response
 		assert.NoError(t, err)
@@ -146,7 +147,7 @@ func TestSchemaRegistryClient_LookupSchemaWithoutReferences(t *testing.T) {
 
 		srClient := CreateSchemaRegistryClient(server.URL)
 		srClient.CodecCreationEnabled(false)
-		schema, err := srClient.LookupSchema("test1-value", "test2", Protobuf)
+		schema, err := srClient.LookupSchema(context.Background(), "test1-value", "test2", Protobuf)
 
 		// Test response
 		assert.NoError(t, err)
@@ -186,7 +187,7 @@ func TestSchemaRegistryClient_LookupSchemaWithoutReferences(t *testing.T) {
 
 		srClient := CreateSchemaRegistryClient(server.URL)
 		srClient.CodecCreationEnabled(false)
-		schema, err := srClient.LookupSchema("test1-value", "test2", Avro)
+		schema, err := srClient.LookupSchema(context.Background(), "test1-value", "test2", Avro)
 
 		// Test response
 		assert.NoError(t, err)
@@ -230,7 +231,7 @@ func TestSchemaRegistryClient_LookupSchemaWithoutReferences(t *testing.T) {
 
 		srClient := CreateSchemaRegistryClient(server.URL)
 		srClient.CodecCreationEnabled(false)
-		_, err := srClient.LookupSchema("test1-value", "test2", Avro)
+		_, err := srClient.LookupSchema(context.Background(), "test1-value", "test2", Avro)
 
 		// Test response is 404 error
 		assert.Error(t, err)
@@ -274,7 +275,7 @@ func TestSchemaRegistryClient_LookupSchemaWithoutReferences(t *testing.T) {
 
 		srClient := CreateSchemaRegistryClient(server.URL)
 		srClient.CodecCreationEnabled(false)
-		_, err := srClient.LookupSchema("test1-value", "test2", Avro)
+		_, err := srClient.LookupSchema(context.Background(), "test1-value", "test2", Avro)
 
 		// Test response is 404 error
 		assert.Error(t, err)
@@ -315,7 +316,7 @@ func TestSchemaRegistryClient_GetSchemaByIDWithReferences(t *testing.T) {
 
 		srClient := CreateSchemaRegistryClient(server.URL)
 		srClient.CodecCreationEnabled(false)
-		schema, err := srClient.GetSchema(1)
+		schema, err := srClient.GetSchema(context.Background(), 1)
 
 		// Test response
 		assert.NoError(t, err)
@@ -337,7 +338,7 @@ func TestSchemaRegistryClient_GetSchemaByIDWithReferences(t *testing.T) {
 
 		srClient := CreateSchemaRegistryClient(server.URL)
 		srClient.CodecCreationEnabled(false)
-		schema, err := srClient.GetSchema(1)
+		schema, err := srClient.GetSchema(context.Background(), 1)
 
 		// Test response
 		assert.NoError(t, err)
@@ -382,7 +383,7 @@ func TestSchemaRegistryClient_GetSchemaByVersionWithReferences(t *testing.T) {
 
 		srClient := CreateSchemaRegistryClient(server.URL)
 		srClient.CodecCreationEnabled(false)
-		schema, err := srClient.GetSchemaByVersion("test1", 1)
+		schema, err := srClient.GetSchemaByVersion(context.Background(), "test1", 1)
 
 		// Test response
 		assert.NoError(t, err)
@@ -404,7 +405,7 @@ func TestSchemaRegistryClient_GetSchemaByVersionWithReferences(t *testing.T) {
 
 		srClient := CreateSchemaRegistryClient(server.URL)
 		srClient.CodecCreationEnabled(false)
-		schema, err := srClient.GetSchemaByVersion("test1", 1)
+		schema, err := srClient.GetSchemaByVersion(context.Background(), "test1", 1)
 
 		// Test response
 		assert.NoError(t, err)
@@ -431,13 +432,13 @@ func TestSchemaRegistryClient_GetSchemaByVersionReturnsValueFromCache(t *testing
 		})
 
 		srClient := CreateSchemaRegistryClient(server.URL)
-		schema1, err := srClient.GetSchemaByVersion("test1", 1)
+		schema1, err := srClient.GetSchemaByVersion(context.Background(), "test1", 1)
 
 		// Test response
 		assert.NoError(t, err)
 
 		// When called twice
-		schema2, err := srClient.GetSchemaByVersion("test1", 1)
+		schema2, err := srClient.GetSchemaByVersion(context.Background(), "test1", 1)
 
 		assert.NoError(t, err)
 		assert.Equal(t, 1, *call)
@@ -458,13 +459,13 @@ func TestSchemaRegistryClient_GetLatestSchemaReturnsValueFromCache(t *testing.T)
 	srClient := CreateSchemaRegistryClient(server.URL)
 	srClient.CacheLatest(true)
 
-	schema1, err := srClient.GetLatestSchema("test1-value")
+	schema1, err := srClient.GetLatestSchema(context.Background(), "test1-value")
 
 	// Test response
 	assert.NoError(t, err)
 
 	// When called twice
-	schema2, err := srClient.GetLatestSchema("test1-value")
+	schema2, err := srClient.GetLatestSchema(context.Background(), "test1-value")
 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, *call)
@@ -484,13 +485,13 @@ func TestSchemaRegistryClient_GetLatestSchemaReturnsValueFromCacheNegative(t *te
 	srClient := CreateSchemaRegistryClient(server.URL)
 	srClient.CacheLatest(false)
 
-	schema1, err := srClient.GetLatestSchema("test1-value")
+	schema1, err := srClient.GetLatestSchema(context.Background(), "test1-value")
 
 	// Test response
 	assert.NoError(t, err)
 
 	// When called twice
-	schema2, err := srClient.GetLatestSchema("test1-value")
+	schema2, err := srClient.GetLatestSchema(context.Background(), "test1-value")
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, *call)
@@ -511,7 +512,7 @@ func TestSchemaRegistryClient_GetSchemaType(t *testing.T) {
 		})
 
 		srClient := CreateSchemaRegistryClient(server.URL)
-		schema, err := srClient.GetLatestSchema("test1-value")
+		schema, err := srClient.GetLatestSchema(context.Background(), "test1-value")
 
 		// Test response
 		assert.NoError(t, err)
@@ -528,7 +529,7 @@ func TestSchemaRegistryClient_GetSchemaType(t *testing.T) {
 		})
 
 		srClient := CreateSchemaRegistryClient(server.URL)
-		schema, err := srClient.GetLatestSchema("test1-value")
+		schema, err := srClient.GetLatestSchema(context.Background(), "test1-value")
 
 		// Test response
 		assert.NoError(t, err)
@@ -549,7 +550,7 @@ func TestSchemaRegistryClient_JsonSchemaParses(t *testing.T) {
 		})
 
 		srClient := CreateSchemaRegistryClient(server.URL)
-		schema1, err := srClient.GetLatestSchema("test1-value")
+		schema1, err := srClient.GetLatestSchema(context.Background(), "test1-value")
 
 		// Test valid schema response
 		assert.NoError(t, err)
@@ -569,7 +570,7 @@ func TestSchemaRegistryClient_JsonSchemaParses(t *testing.T) {
 		})
 
 		srClient := CreateSchemaRegistryClient(server.URL)
-		schema1, err := srClient.GetLatestSchema("test1-value")
+		schema1, err := srClient.GetLatestSchema(context.Background(), "test1-value")
 
 		// Test invalid schema response
 		assert.NoError(t, err)

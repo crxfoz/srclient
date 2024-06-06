@@ -24,26 +24,26 @@ import (
 // definition of the operations that
 // this Schema Registry client provides.
 type ISchemaRegistryClient interface {
-	GetGlobalCompatibilityLevel() (*CompatibilityLevel, error)
-	GetCompatibilityLevel(subject string, defaultToGlobal bool) (*CompatibilityLevel, error)
-	GetSubjects() ([]string, error)
-	GetSubjectsIncludingDeleted() ([]string, error)
-	GetSchema(schemaID int) (*Schema, error)
-	GetLatestSchema(subject string) (*Schema, error)
-	GetSchemaVersions(subject string) ([]int, error)
-	GetSchemaByVersion(subject string, version int) (*Schema, error)
-	CreateSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
-	LookupSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
-	ChangeSubjectCompatibilityLevel(subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error)
-	DeleteSubject(subject string, permanent bool) error
-	DeleteSubjectByVersion(subject string, version int, permanent bool) error
+	GetGlobalCompatibilityLevel(ctx context.Context) (*CompatibilityLevel, error)
+	GetCompatibilityLevel(ctx context.Context, subject string, defaultToGlobal bool) (*CompatibilityLevel, error)
+	GetSubjects(ctx context.Context) ([]string, error)
+	GetSubjectsIncludingDeleted(ctx context.Context) ([]string, error)
+	GetSchema(ctx context.Context, schemaID int) (*Schema, error)
+	GetLatestSchema(ctx context.Context, subject string) (*Schema, error)
+	GetSchemaVersions(ctx context.Context, subject string) ([]int, error)
+	GetSchemaByVersion(ctx context.Context, subject string, version int) (*Schema, error)
+	CreateSchema(ctx context.Context, subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
+	LookupSchema(ctx context.Context, subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error)
+	ChangeSubjectCompatibilityLevel(ctx context.Context, subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error)
+	DeleteSubject(ctx context.Context, subject string, permanent bool) error
+	DeleteSubjectByVersion(ctx context.Context, subject string, version int, permanent bool) error
 	SetCredentials(username string, password string)
 	SetBearerToken(token string)
 	SetTimeout(timeout time.Duration)
 	CachingEnabled(value bool)
 	ResetCache()
 	CodecCreationEnabled(value bool)
-	IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, references ...Reference) (bool, error)
+	IsSchemaCompatible(ctx context.Context, subject, schema, version string, schemaType SchemaType, references ...Reference) (bool, error)
 }
 
 // SchemaRegistryClient allows interactions with
@@ -212,7 +212,7 @@ func (client *SchemaRegistryClient) ResetCache() {
 }
 
 // GetSchema gets the schema associated with the given id.
-func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
+func (client *SchemaRegistryClient) GetSchema(ctx context.Context, schemaID int) (*Schema, error) {
 
 	if client.getCachingEnabled() {
 		client.idSchemaCacheLock.RLock()
@@ -223,7 +223,7 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 		}
 	}
 
-	resp, err := client.httpRequest("GET", fmt.Sprintf(schemaByID, schemaID), nil)
+	resp, err := client.httpRequest(ctx, "GET", fmt.Sprintf(schemaByID, schemaID), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -260,13 +260,13 @@ func (client *SchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 
 // GetLatestSchema gets the schema associated with the given subject.
 // The schema returned contains the last version for that subject.
-func (client *SchemaRegistryClient) GetLatestSchema(subject string) (*Schema, error) {
-	return client.getVersion(subject, "latest")
+func (client *SchemaRegistryClient) GetLatestSchema(ctx context.Context, subject string) (*Schema, error) {
+	return client.getVersion(ctx, subject, "latest")
 }
 
 // GetSchemaVersions returns a list of versions from a given subject.
-func (client *SchemaRegistryClient) GetSchemaVersions(subject string) ([]int, error) {
-	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectVersions, url.QueryEscape(subject)), nil)
+func (client *SchemaRegistryClient) GetSchemaVersions(ctx context.Context, subject string) ([]int, error) {
+	resp, err := client.httpRequest(ctx, "GET", fmt.Sprintf(subjectVersions, url.QueryEscape(subject)), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -281,7 +281,7 @@ func (client *SchemaRegistryClient) GetSchemaVersions(subject string) ([]int, er
 }
 
 // ChangeSubjectCompatibilityLevel changes the compatibility level of the subject.
-func (client *SchemaRegistryClient) ChangeSubjectCompatibilityLevel(subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error) {
+func (client *SchemaRegistryClient) ChangeSubjectCompatibilityLevel(ctx context.Context, subject string, compatibility CompatibilityLevel) (*CompatibilityLevel, error) {
 	configChangeReq := configChangeRequest{CompatibilityLevel: compatibility}
 	configChangeReqBytes, err := json.Marshal(configChangeReq)
 	if err != nil {
@@ -289,7 +289,7 @@ func (client *SchemaRegistryClient) ChangeSubjectCompatibilityLevel(subject stri
 	}
 	payload := bytes.NewBuffer(configChangeReqBytes)
 
-	resp, err := client.httpRequest("PUT", fmt.Sprintf(configBySubject, url.QueryEscape(subject)), payload)
+	resp, err := client.httpRequest(ctx, "PUT", fmt.Sprintf(configBySubject, url.QueryEscape(subject)), payload)
 	if err != nil {
 		return nil, err
 	}
@@ -304,8 +304,8 @@ func (client *SchemaRegistryClient) ChangeSubjectCompatibilityLevel(subject stri
 }
 
 // GetGlobalCompatibilityLevel returns the global compatibility level of the registry.
-func (client *SchemaRegistryClient) GetGlobalCompatibilityLevel() (*CompatibilityLevel, error) {
-	resp, err := client.httpRequest("GET", config, nil)
+func (client *SchemaRegistryClient) GetGlobalCompatibilityLevel(ctx context.Context) (*CompatibilityLevel, error) {
+	resp, err := client.httpRequest(ctx, "GET", config, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -321,8 +321,8 @@ func (client *SchemaRegistryClient) GetGlobalCompatibilityLevel() (*Compatibilit
 
 // GetCompatibilityLevel returns the compatibility level of the subject.
 // If defaultToGlobal is set to true and no compatibility level is set on the subject, the global compatibility level is returned.
-func (client *SchemaRegistryClient) GetCompatibilityLevel(subject string, defaultToGlobal bool) (*CompatibilityLevel, error) {
-	resp, err := client.httpRequest("GET", fmt.Sprintf(configBySubject+"?defaultToGlobal=%t", url.QueryEscape(subject), defaultToGlobal), nil)
+func (client *SchemaRegistryClient) GetCompatibilityLevel(ctx context.Context, subject string, defaultToGlobal bool) (*CompatibilityLevel, error) {
+	resp, err := client.httpRequest(ctx, "GET", fmt.Sprintf(configBySubject+"?defaultToGlobal=%t", url.QueryEscape(subject), defaultToGlobal), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -337,8 +337,8 @@ func (client *SchemaRegistryClient) GetCompatibilityLevel(subject string, defaul
 }
 
 // GetSubjects returns a list of all subjects in the registry
-func (client *SchemaRegistryClient) GetSubjects() ([]string, error) {
-	resp, err := client.httpRequest("GET", subjects, nil)
+func (client *SchemaRegistryClient) GetSubjects(ctx context.Context) ([]string, error) {
+	resp, err := client.httpRequest(ctx, "GET", subjects, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -351,8 +351,8 @@ func (client *SchemaRegistryClient) GetSubjects() ([]string, error) {
 }
 
 // GetSubjectsIncludingDeleted returns a list of all subjects in the registry including those which have been soft deleted
-func (client *SchemaRegistryClient) GetSubjectsIncludingDeleted() ([]string, error) {
-	resp, err := client.httpRequest("GET", subjects+"?deleted=true", nil)
+func (client *SchemaRegistryClient) GetSubjectsIncludingDeleted(ctx context.Context) ([]string, error) {
+	resp, err := client.httpRequest(ctx, "GET", subjects+"?deleted=true", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -366,14 +366,15 @@ func (client *SchemaRegistryClient) GetSubjectsIncludingDeleted() ([]string, err
 
 // GetSchemaByVersion gets the schema associated with the given subject.
 // The schema returned contains the version specified as a parameter.
-func (client *SchemaRegistryClient) GetSchemaByVersion(subject string, version int) (*Schema, error) {
-	return client.getVersion(subject, strconv.Itoa(version))
+func (client *SchemaRegistryClient) GetSchemaByVersion(ctx context.Context, subject string, version int) (*Schema, error) {
+	return client.getVersion(ctx, subject, strconv.Itoa(version))
 }
 
 // CreateSchema creates a new schema in Schema Registry and associates
 // with the subject provided. It returns the newly created schema with
 // all its associated information.
-func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
+func (client *SchemaRegistryClient) CreateSchema(ctx context.Context,
+	subject string, schema string,
 	schemaType SchemaType, references ...Reference) (*Schema, error) {
 	switch schemaType {
 	case Avro, Json:
@@ -395,7 +396,7 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 		return nil, err
 	}
 	payload := bytes.NewBuffer(schemaBytes)
-	resp, err := client.httpRequest("POST", fmt.Sprintf(subjectVersions, url.QueryEscape(subject)), payload)
+	resp, err := client.httpRequest(ctx, "POST", fmt.Sprintf(subjectVersions, url.QueryEscape(subject)), payload)
 	if err != nil {
 		return nil, err
 	}
@@ -406,7 +407,7 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 		return nil, err
 	}
 
-	newSchema, err := client.GetSchema(schemaResp.ID)
+	newSchema, err := client.GetSchema(ctx, schemaResp.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -431,7 +432,7 @@ func (client *SchemaRegistryClient) CreateSchema(subject string, schema string,
 }
 
 // LookupSchema looks up the schema by subject and schema string. If it finds the schema it returns it with all its associated information.
-func (client *SchemaRegistryClient) LookupSchema(subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error) {
+func (client *SchemaRegistryClient) LookupSchema(ctx context.Context, subject string, schema string, schemaType SchemaType, references ...Reference) (*Schema, error) {
 	switch schemaType {
 	case Avro, Json:
 		compiledRegex := regexp.MustCompile(`\r?\n`)
@@ -452,7 +453,7 @@ func (client *SchemaRegistryClient) LookupSchema(subject string, schema string, 
 		return nil, err
 	}
 	payload := bytes.NewBuffer(schemaBytes)
-	resp, err := client.httpRequest("POST", fmt.Sprintf(subjectBySubject, url.QueryEscape(subject)), payload)
+	resp, err := client.httpRequest(ctx, "POST", fmt.Sprintf(subjectBySubject, url.QueryEscape(subject)), payload)
 	if err != nil {
 		return nil, err
 	}
@@ -500,7 +501,7 @@ func (client *SchemaRegistryClient) LookupSchema(subject string, schema string, 
 
 // IsSchemaCompatible checks if the given schema is compatible with the given subject and version
 // valid versions are versionID and "latest"
-func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version string, schemaType SchemaType, references ...Reference) (bool, error) {
+func (client *SchemaRegistryClient) IsSchemaCompatible(ctx context.Context, subject, schema, version string, schemaType SchemaType, references ...Reference) (bool, error) {
 	if references == nil {
 		references = make([]Reference, 0)
 	}
@@ -513,7 +514,7 @@ func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version 
 	payload := bytes.NewBuffer(schemaReqBytes)
 
 	url := fmt.Sprintf("/compatibility/subjects/%s/versions/%s", subject, version)
-	resp, err := client.httpRequest("POST", url, payload)
+	resp, err := client.httpRequest(ctx, "POST", url, payload)
 	if err != nil {
 		return false, err
 	}
@@ -528,28 +529,28 @@ func (client *SchemaRegistryClient) IsSchemaCompatible(subject, schema, version 
 }
 
 // DeleteSubject deletes
-func (client *SchemaRegistryClient) DeleteSubject(subject string, permanent bool) error {
+func (client *SchemaRegistryClient) DeleteSubject(ctx context.Context, subject string, permanent bool) error {
 	uri := "/subjects/" + subject
-	_, err := client.httpRequest("DELETE", uri, nil)
+	_, err := client.httpRequest(ctx, "DELETE", uri, nil)
 	if err != nil || !permanent {
 		return err
 	}
 
 	uri += "?permanent=true"
-	_, err = client.httpRequest("DELETE", uri, nil)
+	_, err = client.httpRequest(ctx, "DELETE", uri, nil)
 	return err
 }
 
 // DeleteSubjectByVersion deletes the version of the scheme
-func (client *SchemaRegistryClient) DeleteSubjectByVersion(subject string, version int, permanent bool) error {
+func (client *SchemaRegistryClient) DeleteSubjectByVersion(ctx context.Context, subject string, version int, permanent bool) error {
 	uri := fmt.Sprintf(subjectByVersion, subject, strconv.Itoa(version))
-	_, err := client.httpRequest("DELETE", uri, nil)
+	_, err := client.httpRequest(ctx, "DELETE", uri, nil)
 	if err != nil || !permanent {
 		return err
 	}
 
 	uri += "?permanent=true"
-	_, err = client.httpRequest("DELETE", uri, nil)
+	_, err = client.httpRequest(ctx, "DELETE", uri, nil)
 	return err
 }
 
@@ -610,7 +611,7 @@ func (client *SchemaRegistryClient) CodecCreationEnabled(value bool) {
 	client.codecCreationEnabled = value
 }
 
-func (client *SchemaRegistryClient) getVersion(subject string, version string) (*Schema, error) {
+func (client *SchemaRegistryClient) getVersion(ctx context.Context, subject string, version string) (*Schema, error) {
 
 	if client.getCachingEnabled() {
 		if version != "latest" || (version == "latest" && client.getCacheLatest()) {
@@ -624,7 +625,7 @@ func (client *SchemaRegistryClient) getVersion(subject string, version string) (
 		}
 	}
 
-	resp, err := client.httpRequest("GET", fmt.Sprintf(subjectByVersion, url.QueryEscape(subject), version), nil)
+	resp, err := client.httpRequest(ctx, "GET", fmt.Sprintf(subjectByVersion, url.QueryEscape(subject), version), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -669,10 +670,10 @@ func (client *SchemaRegistryClient) getVersion(subject string, version string) (
 	return schema, nil
 }
 
-func (client *SchemaRegistryClient) httpRequest(method, uri string, payload io.Reader) ([]byte, error) {
+func (client *SchemaRegistryClient) httpRequest(ctx context.Context, method, uri string, payload io.Reader) ([]byte, error) {
 
 	url := fmt.Sprintf("%s%s", client.schemaRegistryURL, uri)
-	req, err := http.NewRequest(method, url, payload)
+	req, err := http.NewRequestWithContext(ctx, method, url, payload)
 	if err != nil {
 		return nil, err
 	}

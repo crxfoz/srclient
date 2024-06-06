@@ -4,6 +4,7 @@
 package srclient
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -16,7 +17,7 @@ var client *SchemaRegistryClient = CreateSchemaRegistryClient(srclientUrl)
 
 func TestGetSubjects(t *testing.T) {
 	t.Parallel()
-	subjects, err := client.GetSubjects()
+	subjects, err := client.GetSubjects(context.Background())
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -36,12 +37,12 @@ func TestCreateSchema(t *testing.T) {
 		]
 	  }`
 
-	_, err := client.CreateSchema(subject, schema, Avro)
+	_, err := client.CreateSchema(context.Background(), subject, schema, Avro)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	subjects, err := client.GetSubjects()
+	subjects, err := client.GetSubjects(context.Background())
 	if err != nil {
 		t.Fatal(err.Error())
 	}

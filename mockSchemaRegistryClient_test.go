@@ -1,8 +1,10 @@
 package srclient
 
 import (
-	"github.com/stretchr/testify/assert"
+	"context"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -87,14 +89,14 @@ func TestMockSchemaRegistryClient_CreateSchema_RegistersSchemaCorrectly(t *testi
 
 			// Add existing schemas
 			for version, schema := range testData.existingSchemas {
-				_, err := registry.SetSchema(-1, testData.subject, schema, testData.schemaType, version)
+				_, err := registry.SetSchema(context.Background(), -1, testData.subject, schema, testData.schemaType, version)
 				if err != nil {
 					t.Fatal(err)
 				}
 			}
 
 			// Act
-			schema, err := registry.CreateSchema(testData.subject, testData.schema, testData.schemaType)
+			schema, err := registry.CreateSchema(context.Background(), testData.subject, testData.schema, testData.schemaType)
 
 			// Assert
 			if assert.NoError(t, err) {
@@ -194,14 +196,14 @@ func TestMockSchemaRegistryClient_SetSchema_RegistersSchemaCorrectly(t *testing.
 
 			// Add existing schemas
 			for version, schema := range testData.existingSchemas {
-				_, err := registry.SetSchema(-1, testData.subject, schema, testData.schemaType, version)
+				_, err := registry.SetSchema(context.Background(), -1, testData.subject, schema, testData.schemaType, version)
 				if err != nil {
 					t.Fatal(err)
 				}
 			}
 
 			// Act
-			schema, err := registry.SetSchema(testData.id, testData.subject, testData.schema, testData.schemaType, testData.version)
+			schema, err := registry.SetSchema(context.Background(), testData.id, testData.subject, testData.schema, testData.schemaType, testData.version)
 
 			// Assert
 			if assert.NoError(t, err) {
@@ -250,7 +252,7 @@ func TestMockSchemaRegistryClient_SetSchema_CorrectlyUpdatesIdCounter(t *testing
 			registry.idCounter = testData.currentId
 
 			// Act
-			_, _ = registry.SetSchema(testData.newId, "cupcake", `{}`, Avro, 0)
+			_, _ = registry.SetSchema(context.Background(), testData.newId, "cupcake", `{}`, Avro, 0)
 
 			// Assert
 			assert.Equal(t, testData.expectedId, registry.idCounter)
@@ -264,7 +266,7 @@ func TestMockSchemaRegistryClient_CreateSchema_ReturnsErrorOnInvalidSchemaType(t
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
 	// Act
-	schema, err := registry.CreateSchema("", "", "random")
+	schema, err := registry.CreateSchema(context.Background(), "", "", "random")
 
 	// Assert
 	assert.Nil(t, schema)
@@ -283,7 +285,7 @@ func TestMockSchemaRegistryClient_CreateSchema_ReturnsErrorOnDuplicateSchema(t *
 	}
 
 	// Act
-	schema, err := registry.CreateSchema("cupcake", "{}", avroType)
+	schema, err := registry.CreateSchema(context.Background(), "cupcake", "{}", avroType)
 
 	// Assert
 	assert.Nil(t, schema)
@@ -302,7 +304,7 @@ func TestMockSchemaRegistryClient_GetSchema_ReturnsSchema(t *testing.T) {
 	}
 
 	// Act
-	result, err := registry.GetSchema(234)
+	result, err := registry.GetSchema(context.Background(), 234)
 
 	// Assert
 	assert.Nil(t, err)
@@ -315,7 +317,7 @@ func TestMockSchemaRegistryClient_GetSchema_ReturnsErrOnNotFound(t *testing.T) {
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
 	// Act
-	result, err := registry.GetSchema(234)
+	result, err := registry.GetSchema(context.Background(), 234)
 
 	// Assert
 	assert.ErrorIs(t, err, errSchemaNotFound)
@@ -329,7 +331,7 @@ func TestMockSchemaRegistryClient_GetLatestSchema_ReturnsErrorOn0SchemaVersions(
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
 	// Act
-	result, err := registry.GetLatestSchema("cupcake")
+	result, err := registry.GetLatestSchema(context.Background(), "cupcake")
 
 	// Assert
 	assert.Nil(t, result)
@@ -368,7 +370,7 @@ func TestMockSchemaRegistryClient_GetLatestSchema_ReturnsExpectedSchema(t *testi
 			registry.schemaVersions[testData.subject] = testData.existingSchemas
 
 			// Act
-			result, err := registry.GetLatestSchema(testData.subject)
+			result, err := registry.GetLatestSchema(context.Background(), testData.subject)
 
 			// Assert
 			assert.Nil(t, err)
@@ -389,7 +391,7 @@ func TestMockSchemaRegistryClient_GetSchemaVersions_ReturnsSchemaVersions(t *tes
 	}
 
 	// Act
-	result, err := registry.GetSchemaVersions("cupcake")
+	result, err := registry.GetSchemaVersions(context.Background(), "cupcake")
 
 	// Assert
 	assert.Nil(t, err)
@@ -403,7 +405,7 @@ func TestMockSchemaRegistryClient_GetSchemaByVersion_ReturnsErrorOnSubjectNotFou
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
 	// Act
-	result, err := registry.GetSchemaByVersion("cupcake", 0)
+	result, err := registry.GetSchemaByVersion(context.Background(), "cupcake", 0)
 
 	// Assert
 	assert.Nil(t, result)
@@ -419,7 +421,7 @@ func TestMockSchemaRegistryClient_GetSchemaByVersion_ReturnsErrorOnSchemaNotFoun
 	}
 
 	// Act
-	result, err := registry.GetSchemaByVersion("cupcake", 0)
+	result, err := registry.GetSchemaByVersion(context.Background(), "cupcake", 0)
 
 	// Assert
 	assert.Nil(t, result)
@@ -464,7 +466,7 @@ func TestMockSchemaRegistryClient_GetSchemaByVersion_ReturnsSchema(t *testing.T)
 			registry.schemaVersions[testData.subject] = testData.existingSchemas
 
 			// Act
-			result, err := registry.GetSchemaByVersion(testData.subject, testData.version)
+			result, err := registry.GetSchemaByVersion(context.Background(), testData.subject, testData.version)
 
 			// Assert
 			assert.Nil(t, err)
@@ -485,7 +487,7 @@ func TestMockSchemaRegistryClient_GetSubjects_ReturnsAllSubjects(t *testing.T) {
 	}
 
 	// Act
-	result, err := registry.GetSubjects()
+	result, err := registry.GetSubjects(context.Background())
 
 	// Assert
 	assert.Nil(t, err)
@@ -500,7 +502,7 @@ func TestMockSchemaRegistryClient_GetSubjectsIncludingDeleted_IsNotImplemented(t
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
 	// Act
-	result, err := registry.GetSubjectsIncludingDeleted()
+	result, err := registry.GetSubjectsIncludingDeleted(context.Background())
 
 	// Assert
 	assert.Nil(t, result)
@@ -515,7 +517,7 @@ func TestMockSchemaRegistryClient_DeleteSubject_DeletesSubject(t *testing.T) {
 	}
 
 	// Act
-	err := registry.DeleteSubject("b", false)
+	err := registry.DeleteSubject(context.Background(), "b", false)
 
 	// Assert
 	assert.Nil(t, err)
@@ -534,7 +536,7 @@ func TestMockSchemaRegistryClient_DeleteSubjectByVersion_DeletesSubjectVersion(t
 	}
 
 	// Act
-	err := registry.DeleteSubjectByVersion("b", 2, false)
+	err := registry.DeleteSubjectByVersion(context.Background(), "b", 2, false)
 
 	// Assert
 	assert.Nil(t, err)
@@ -548,7 +550,7 @@ func TestMockSchemaRegistryClient_DeleteSubjectByVersion_ReturnsErrorOnSubjectNo
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
 	// Act
-	err := registry.DeleteSubjectByVersion("cupcake", 5, false)
+	err := registry.DeleteSubjectByVersion(context.Background(), "cupcake", 5, false)
 
 	// Assert
 	assert.ErrorIs(t, err, errSubjectNotFound)
@@ -565,7 +567,7 @@ func TestMockSchemaRegistryClient_DeleteSubjectByVersion_ReturnsErrorOnVersionNo
 	}
 
 	// Act
-	err := registry.DeleteSubjectByVersion("cupcake", 5, false)
+	err := registry.DeleteSubjectByVersion(context.Background(), "cupcake", 5, false)
 
 	// Assert
 	assert.ErrorIs(t, err, errSchemaNotFound)
@@ -577,7 +579,7 @@ func TestMockSchemaRegistryClient_ChangeSubjectCompatibilityLevel_IsNotImplement
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
 	// Act
-	result, err := registry.ChangeSubjectCompatibilityLevel("", "")
+	result, err := registry.ChangeSubjectCompatibilityLevel(context.Background(), "", "")
 
 	// Assert
 	assert.Nil(t, result)
@@ -590,7 +592,7 @@ func TestMockSchemaRegistryClient_GetGlobalCompatibilityLevel_IsNotImplemented(t
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
 	// Act
-	result, err := registry.GetGlobalCompatibilityLevel()
+	result, err := registry.GetGlobalCompatibilityLevel(context.Background())
 
 	// Assert
 	assert.Nil(t, result)
@@ -603,7 +605,7 @@ func TestMockSchemaRegistryClient_GetCompatibilityLevel_IsNotImplemented(t *test
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
 	// Act
-	result, err := registry.GetCompatibilityLevel("", false)
+	result, err := registry.GetCompatibilityLevel(context.Background(), "", false)
 
 	// Assert
 	assert.Nil(t, result)
@@ -616,7 +618,7 @@ func TestMockSchemaRegistryClient_IsSchemaCompatible_IsNotImplemented(t *testing
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
 	// Act
-	result, err := registry.IsSchemaCompatible("", "", "", "")
+	result, err := registry.IsSchemaCompatible(context.Background(), "", "", "", "")
 
 	// Assert
 	assert.False(t, result)
@@ -629,7 +631,7 @@ func TestMockSchemaRegistryClient_LookupSchema_IsNotImplemented(t *testing.T) {
 	registry := CreateMockSchemaRegistryClient("http://localhost:8081")
 
 	// Act
-	result, err := registry.LookupSchema("", "", "")
+	result, err := registry.LookupSchema(context.Background(), "", "", "")
 
 	// Assert
 	assert.Nil(t, result)

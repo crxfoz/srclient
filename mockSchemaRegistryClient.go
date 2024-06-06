@@ -1,6 +1,7 @@
 package srclient
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -53,15 +54,15 @@ func CreateMockSchemaRegistryClient(mockURL string) *MockSchemaRegistryClient {
 var avroRegex = regexp.MustCompile(`\r?\n`)
 
 // CreateSchema generates a new schema with the given details, references are unused
-func (mck *MockSchemaRegistryClient) CreateSchema(subject string, schema string, schemaType SchemaType, _ ...Reference) (*Schema, error) {
+func (mck *MockSchemaRegistryClient) CreateSchema(ctx context.Context, subject string, schema string, schemaType SchemaType, _ ...Reference) (*Schema, error) {
 	mck.idCounter++
-	return mck.SetSchema(mck.idCounter, subject, schema, schemaType, -1)
+	return mck.SetSchema(ctx, mck.idCounter, subject, schema, schemaType, -1)
 }
 
 // SetSchema overwrites a schema with the given id. Allows you to set a schema with a specific ID for testing purposes.
 // Sets the ID counter to the given id if it is greater than the current counter. Version
 // is used to set the version of the schema. If version is -1, the version will be set to the next available version.
-func (mck *MockSchemaRegistryClient) SetSchema(id int, subject string, schema string, schemaType SchemaType, version int) (*Schema, error) {
+func (mck *MockSchemaRegistryClient) SetSchema(_ context.Context, id int, subject string, schema string, schemaType SchemaType, version int) (*Schema, error) {
 	if id > mck.idCounter {
 		mck.idCounter = id
 	}
@@ -96,7 +97,7 @@ func (mck *MockSchemaRegistryClient) SetSchema(id int, subject string, schema st
 }
 
 // GetSchema Returns a Schema for the given ID
-func (mck *MockSchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
+func (mck *MockSchemaRegistryClient) GetSchema(_ context.Context, schemaID int) (*Schema, error) {
 	thisSchema, ok := mck.schemaIDs[schemaID]
 	if !ok {
 		posErr := url.Error{
@@ -111,9 +112,9 @@ func (mck *MockSchemaRegistryClient) GetSchema(schemaID int) (*Schema, error) {
 }
 
 // GetLatestSchema Returns the highest ordinal version of a Schema for a given `concrete subject`
-func (mck *MockSchemaRegistryClient) GetLatestSchema(subject string) (*Schema, error) {
+func (mck *MockSchemaRegistryClient) GetLatestSchema(ctx context.Context, subject string) (*Schema, error) {
 	// Error is never returned
-	versions, _ := mck.GetSchemaVersions(subject)
+	versions, _ := mck.GetSchemaVersions(ctx, subject)
 	if len(versions) == 0 {
 		return nil, errSchemaNotFound
 	}
@@ -121,19 +122,19 @@ func (mck *MockSchemaRegistryClient) GetLatestSchema(subject string) (*Schema, e
 	latestVersion := versions[len(versions)-1]
 
 	// This can't realistically throw an error
-	thisSchema, _ := mck.GetSchemaByVersion(subject, latestVersion)
+	thisSchema, _ := mck.GetSchemaByVersion(ctx, subject, latestVersion)
 
 	return thisSchema, nil
 }
 
 // GetSchemaVersions Returns the array of versions this subject has previously registered
-func (mck *MockSchemaRegistryClient) GetSchemaVersions(subject string) ([]int, error) {
+func (mck *MockSchemaRegistryClient) GetSchemaVersions(_ context.Context, subject string) ([]int, error) {
 	versions := mck.allVersions(subject)
 	return versions, nil
 }
 
 // GetSchemaByVersion Returns the given Schema according to the passed in subject and version number
-func (mck *MockSchemaRegistryClient) GetSchemaByVersion(subject string, version int) (*Schema, error) {
+func (mck *MockSchemaRegistryClient) GetSchemaByVersion(_ context.Context, subject string, version int) (*Schema, error) {
 	var schema *Schema
 	schemaVersionMap, ok := mck.schemaVersions[subject]
 	if !ok {
@@ -163,7 +164,7 @@ func (mck *MockSchemaRegistryClient) GetSchemaByVersion(subject string, version 
 }
 
 // GetSubjects Returns all registered subjects
-func (mck *MockSchemaRegistryClient) GetSubjects() ([]string, error) {
+func (mck *MockSchemaRegistryClient) GetSubjects(_ context.Context) ([]string, error) {
 	var allSubjects []string
 
 	for subject := range mck.schemaVersions {
@@ -174,18 +175,18 @@ func (mck *MockSchemaRegistryClient) GetSubjects() ([]string, error) {
 }
 
 // GetSubjectsIncludingDeleted is not implemented and returns an error
-func (mck *MockSchemaRegistryClient) GetSubjectsIncludingDeleted() ([]string, error) {
+func (mck *MockSchemaRegistryClient) GetSubjectsIncludingDeleted(_ context.Context) ([]string, error) {
 	return nil, errNotImplemented
 }
 
 // DeleteSubject removes given subject from the cache
-func (mck *MockSchemaRegistryClient) DeleteSubject(subject string, _ bool) error {
+func (mck *MockSchemaRegistryClient) DeleteSubject(_ context.Context, subject string, _ bool) error {
 	delete(mck.schemaVersions, subject)
 	return nil
 }
 
 // DeleteSubjectByVersion removes given subject's version from cache
-func (mck *MockSchemaRegistryClient) DeleteSubjectByVersion(subject string, version int, _ bool) error {
+func (mck *MockSchemaRegistryClient) DeleteSubjectByVersion(_ context.Context, subject string, version int, _ bool) error {
 	_, ok := mck.schemaVersions[subject]
 	if !ok {
 		posErr := url.Error{
@@ -212,17 +213,17 @@ func (mck *MockSchemaRegistryClient) DeleteSubjectByVersion(subject string, vers
 }
 
 // ChangeSubjectCompatibilityLevel is not implemented
-func (mck *MockSchemaRegistryClient) ChangeSubjectCompatibilityLevel(string, CompatibilityLevel) (*CompatibilityLevel, error) {
+func (mck *MockSchemaRegistryClient) ChangeSubjectCompatibilityLevel(context.Context, string, CompatibilityLevel) (*CompatibilityLevel, error) {
 	return nil, errNotImplemented
 }
 
 // GetGlobalCompatibilityLevel is not implemented
-func (mck *MockSchemaRegistryClient) GetGlobalCompatibilityLevel() (*CompatibilityLevel, error) {
+func (mck *MockSchemaRegistryClient) GetGlobalCompatibilityLevel(_ context.Context) (*CompatibilityLevel, error) {
 	return nil, errNotImplemented
 }
 
 // GetCompatibilityLevel is not implemented
-func (mck *MockSchemaRegistryClient) GetCompatibilityLevel(string, bool) (*CompatibilityLevel, error) {
+func (mck *MockSchemaRegistryClient) GetCompatibilityLevel(context.Context, string, bool) (*CompatibilityLevel, error) {
 	return nil, errNotImplemented
 }
 
@@ -257,12 +258,12 @@ func (mck *MockSchemaRegistryClient) CodecCreationEnabled(bool) {
 }
 
 // IsSchemaCompatible is not implemented
-func (mck *MockSchemaRegistryClient) IsSchemaCompatible(string, string, string, SchemaType, ...Reference) (bool, error) {
+func (mck *MockSchemaRegistryClient) IsSchemaCompatible(context.Context, string, string, string, SchemaType, ...Reference) (bool, error) {
 	return false, errNotImplemented
 }
 
 // LookupSchema is not implemented
-func (mck *MockSchemaRegistryClient) LookupSchema(string, string, SchemaType, ...Reference) (*Schema, error) {
+func (mck *MockSchemaRegistryClient) LookupSchema(context.Context, string, string, SchemaType, ...Reference) (*Schema, error) {
 	return nil, errNotImplemented
 }
 
