@@ -233,7 +233,7 @@ func (mck *MockSchemaRegistryClient) SetCredentials(string, string) {
 }
 
 // SetBearerToken is not implemented
-func (mck *MockSchemaRegistryClient) SetBearerToken(string) {
+func (mck *MockSchemaRegistryClient) SetBearerToken(TokenProvider) {
 	// Nothing because mockSchemaRegistryClient is actually very vulnerable
 }
 

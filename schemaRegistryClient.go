@@ -38,7 +38,7 @@ type ISchemaRegistryClient interface {
 	DeleteSubject(ctx context.Context, subject string, permanent bool) error
 	DeleteSubjectByVersion(ctx context.Context, subject string, version int, permanent bool) error
 	SetCredentials(username string, password string)
-	SetBearerToken(token string)
+	SetBearerToken(token TokenProvider)
 	SetTimeout(timeout time.Duration)
 	CachingEnabled(value bool)
 	ResetCache()
@@ -134,7 +134,7 @@ type credentials struct {
 	password string
 
 	// Bearer Authorization token
-	bearerToken string
+	bearerToken TokenProvider
 }
 
 type schemaRequest struct {
@@ -562,7 +562,7 @@ func (client *SchemaRegistryClient) SetCredentials(username string, password str
 	defer client.credsLock.Unlock()
 
 	if len(username) > 0 && len(password) > 0 {
-		credentials := credentials{username: username, password: password, bearerToken: ""}
+		credentials := credentials{username: username, password: password, bearerToken: nil}
 		client.credentials = &credentials
 	}
 }
@@ -570,11 +570,11 @@ func (client *SchemaRegistryClient) SetCredentials(username string, password str
 // SetBearerToken allows users to add a Bearer Token
 // http header with calls to Schema Registry
 // The BearerToken will override Schema Registry credentials
-func (client *SchemaRegistryClient) SetBearerToken(token string) {
+func (client *SchemaRegistryClient) SetBearerToken(token TokenProvider) {
 	client.credsLock.Lock()
 	defer client.credsLock.Unlock()
 
-	if len(token) > 0 {
+	if token != nil {
 		credentials := credentials{username: "", password: "", bearerToken: token}
 		client.credentials = &credentials
 	}
@@ -682,8 +682,13 @@ func (client *SchemaRegistryClient) httpRequest(ctx context.Context, method, uri
 	if client.credentials != nil {
 		if len(client.credentials.username) > 0 && len(client.credentials.password) > 0 {
 			req.SetBasicAuth(client.credentials.username, client.credentials.password)
-		} else if len(client.credentials.bearerToken) > 0 {
-			req.Header.Add("Authorization", "Bearer "+client.credentials.bearerToken)
+		} else if client.credentials.bearerToken != nil {
+			token, err := client.credentials.bearerToken.ObtainToken(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Add("Authorization", "Bearer "+token)
 		}
 	}
 	client.credsLock.RUnlock()
